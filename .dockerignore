@@ -1,0 +1,17 @@
+# Der Build läuft im Container über npm ci; eine mitkopierte Installation vom
+# Host wäre nicht nur überflüssig, sondern für die falsche Plattform gebaut.
+node_modules
+dist
+
+.git
+.gitignore
+.github
+README.md
+
+# deploy/ bleibt im Context: die zweite Stage kopiert daraus das
+# nginx-Template.
+.env
+.env.local
+.env.*.local
+.vite
+*.tsbuildinfo

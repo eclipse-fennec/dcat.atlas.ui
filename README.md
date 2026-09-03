@@ -194,6 +194,50 @@ Das Modell ist flach: `title`, `description`, `keyword` sind
 `accrualPeriodicity` sind blanke IRIs. `src/emf/vocab.ts` übersetzt die
 gängigen EU-Authority-Codes ins Deutsche.
 
+## Container
+
+```bash
+cd deploy && docker compose up -d --build     # http://localhost:8081/
+```
+
+Das Image trägt die gebaute App und ein nginx, das `/dcat/` an das Portal
+weiterreicht. Die Portal-Adresse ist **Laufzeit**-Konfiguration, keine
+Build-Konfiguration:
+
+| Variable | Bedeutung | Default |
+| --- | --- | --- |
+| `DCAT_ATLAS_URL` | Basis, unter der `/rest` und `/health` des Portals liegen — mit abschließendem Schrägstrich | `http://host.docker.internal:8080/` |
+| `DCAT_ATLAS_HOST` | `host[:port]` genau dieser URL, als `Host`-Header geschickt | `host.docker.internal:8080` |
+| `DCAT_ATLAS_AUTH` | vollständiger `Authorization`-Header, falls das Portal einen verlangt | leer |
+| `UI_PORT` | Host-Port (nur Compose) | `8081` |
+
+Dasselbe Image zeigt damit auf jedes Portal:
+
+```bash
+DCAT_ATLAS_URL=https://dcat.modelatlas.cloud/ \
+DCAT_ATLAS_HOST=dcat.modelatlas.cloud \
+docker compose up -d
+```
+
+`VITE_DCAT_API` wird beim Bauen bewusst **nicht** gesetzt — es würde in die
+Bundles eingebacken und ein Image pro Portal erzwingen. Der Client fällt
+stattdessen auf `/dcat/rest` zurück, also denselben Origin. Das ist nicht nur
+bequemer: die API schickt keine CORS-Header und erlaubt nur `GET`, `HEAD` und
+`OPTIONS`, ein Cross-Origin-Schreibzugriff scheitert also schon im Browser.
+Über den Proxy bleibt die Verwaltung erreichbar.
+
+Die Absicherung der Schreibseite liegt damit beim Portal oder einem
+vorgelagerten Gateway — dieser Container reicht alle Methoden weiter.
+
+`DCAT_ATLAS_URL` ist die Basis *inklusive* Kontextpfad: für das Portal-Image
+(`CONTEXT_PATH=/`) die blanke Wurzel, für einen bndrun-Lauf mit Kontextpfad
+`/dcat` entsprechend `http://host:8085/dcat/`.
+
+Gebaut und veröffentlicht wird über `.github/workflows/images.yml` nach
+`ghcr.io/eclipse-fennec/dcat.atlas.ui`, getaggt mit Commit-SHA, Branch und
+Paketversion; `latest` nur vom Standard-Branch. Die Reihenfolge ist bauen →
+starten → prüfen → pushen, damit kein ungetestetes Image in der Registry landet.
+
 ## EMFTs-Abhängigkeiten
 
 Die drei EMFTs-Pakete kommen aus der npm-Registry, exakt gepinnt:

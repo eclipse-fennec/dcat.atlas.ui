@@ -1,0 +1,114 @@
+# Der DCAT-Viewer als Container: statische App plus ein Proxy auf das Portal.
+#
+#   /            die App (index.html, assets/, model/, dcat.svg)
+#   /dcat/       weitergereicht an ${DCAT_ATLAS_URL}
+#
+# Warum ein Proxy und nicht die Portal-URL im JavaScript: `VITE_DCAT_API` wird
+# zur *Build*-Zeit eingebacken, ein Image pro Portal wäre die Folge. Bleibt die
+# Variable beim Bauen leer, nutzt der Client seinen Default `/dcat/rest` — also
+# denselben Origin — und das Ziel ist hier zur *Laufzeit* eine Umgebungsvariable.
+# Nebeneffekt, der wichtiger ist als die Bequemlichkeit: same-origin bleibt die
+# Schreibseite erreichbar. Die API schickt keine CORS-Header und erlaubt nur
+# GET, HEAD und OPTIONS, ein Cross-Origin-Schreibzugriff scheitert also im
+# Browser, bevor der Server ihn sieht.
+#
+# Dies ist ein *Template*: das Entrypoint des nginx-Images lässt envsubst über
+# /etc/nginx/templates/ laufen und schreibt das Ergebnis nach
+# conf.d/default.conf. Ersetzt werden ${DCAT_ATLAS_URL}, ${DCAT_ATLAS_HOST},
+# ${DCAT_ATLAS_AUTH} und ${NGINX_LOCAL_RESOLVERS}; nginx-eigene Variablen
+# ($uri, $host, …) stehen nicht in der Umgebung und bleiben unberührt.
+
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Die Portal-API. Muss als Regex auf '/dcat/' ankern und nicht als blanker
+    # Prefix '/dcat' stehen: ein Prefix greift auch für /dcat.svg und schickte
+    # das Logo an den Portal-Server, der es mit 502 quittiert. Genau dieser
+    # Fehler steckte im Dev-Proxy.
+    #
+    # Der Upstream läuft über eine Variable, damit der Name pro Anfrage
+    # aufgelöst wird. Ein literales proxy_pass löst einmal beim Parsen auf: der
+    # Container startet dann nicht, solange das Portal fehlt ("host not found in
+    # upstream"), und ein Neustart des Portals — neue IP — lässt diesen Proxy
+    # dauerhaft 502 antworten, bis nginx selbst neu startet.
+    #
+    # Dafür braucht es einen resolver, und zwar ${NGINX_LOCAL_RESOLVERS} statt
+    # einer festen Adresse: das Entrypoint-Skript 15-local-resolvers.envsh liest
+    # die /etc/resolv.conf des Containers und exportiert die Nameserver, die es
+    # findet. Ein hartes 127.0.0.11 ist Dockers eingebettetes DNS und existiert
+    # unter podman nicht, das auf dem Netzwerk-Gateway antwortet. Verlangt
+    # NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1, das Dockerfile setzt es.
+    #
+    # Die Regex-Erfassung trägt den Pfad: sobald eine Variable in proxy_pass
+    # steht, entfernt nginx den Location-Prefix nicht mehr selbst, Restpfad und
+    # Query müssen ausdrücklich angehängt werden. ${DCAT_ATLAS_URL} braucht
+    # deshalb einen abschließenden Schrägstrich, damit /dcat/rest/datasets auf
+    # <url>rest/datasets landet.
+    location ~ ^/dcat/(?<dcat_path>.*)$ {
+        resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
+        resolver_timeout 3s;
+
+        set $dcat_upstream "${DCAT_ATLAS_URL}";
+        proxy_pass $dcat_upstream$dcat_path$is_args$args;
+        proxy_http_version 1.1;
+
+        # Der Host des *Upstreams*, nicht $host: ein Portal hinter einem Gateway
+        # routet auf diesen Header, und der Browser-Host trifft dort nichts.
+        proxy_set_header Host ${DCAT_ATLAS_HOST};
+        # Leer heißt: nginx lässt den Header weg. Für ein Portal, dessen
+        # Schreibseite hinter Basic-Auth liegt, hier den vollständigen Wert
+        # setzen ("Basic <base64 user:pass>") — mit dem Bewusstsein, dass dann
+        # jeder, der diesen Container erreicht, mit diesen Rechten schreibt.
+        proxy_set_header Authorization "${DCAT_ATLAS_AUTH}";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # nginx schickt SNI nicht von sich aus; ohne das scheitert der
+        # TLS-Handshake gegen ein namensbasiertes Gateway.
+        proxy_ssl_server_name on;
+
+        proxy_connect_timeout 5s;
+        # Großzügig, weil der SPARQL-Endpunkt selbst erst nach 30 Sekunden
+        # abbricht. Ein knapperes Limit hier würde lange Abfragen abschneiden
+        # und als Proxy-Fehler ausgeben, statt die Meldung des Portals zu zeigen.
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+
+        # Ein XMI-Dokument beim Anlegen ist größer als die nginx-Vorgabe von 1m.
+        client_max_body_size 10m;
+
+        # Katalogantworten sind veränderlich, und die Paginierung hängt an
+        # Antwort-Headern (Link, X-Total-Count) — eine zwischengelagerte Kopie
+        # brächte den Cursor aus dem Tritt.
+        add_header Cache-Control "no-store" always;
+    }
+
+    # Vite benennt die Bundles mit einem Inhalts-Hash, sie sind damit
+    # unveränderlich und dürfen lange liegen bleiben.
+    location /assets/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    # Die Ecore-Metamodelle und das UIModel. Nicht unveränderlich — sie ändern
+    # sich mit dem Portal-Modell —, aber teuer genug für einen kurzen Cache.
+    location /model/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=300";
+    }
+
+    # Die Einstiegsseite verweist auf die gehashten Bundles; wird sie
+    # gecacht, bleibt der Viewer nach einem Update auf der alten Fassung.
+    location = / {
+        try_files /index.html =404;
+        add_header Cache-Control "no-store";
+    }
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}
