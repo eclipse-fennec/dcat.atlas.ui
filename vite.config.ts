@@ -30,10 +30,17 @@ export default defineConfig(({ mode }) => {
       // interne Imports. Galt schon für die früheren file:-Verweise und bleibt
       // konservativ auch für die npm-Pakete.
       exclude: ['@emfts/core', '@emfts/vue-registry', '@emfts/uimodel-composer'],
+      // sax ist CommonJS und liegt unter den ausgenommenen Paketen. Ohne
+      // Vorbündeln liefert es keinen default-Export und der Dev-Server bricht
+      // beim Start ab — der Production-Build merkt das nicht, weil Rollup den
+      // CJS-Interop selbst erledigt.
+      include: ['sax'],
     },
     server: {
       proxy: {
-        '/dcat': { target, changeOrigin: true },
+        // Als Regex, nicht als Prefix: ein blankes '/dcat' würde auch
+        // statische Dateien wie '/dcat.svg' an den Portal-Server schicken.
+        '^/dcat/': { target, changeOrigin: true },
       },
     },
   };
