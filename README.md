@@ -194,11 +194,37 @@ Das Modell ist flach: `title`, `description`, `keyword` sind
 `accrualPeriodicity` sind blanke IRIs. `src/emf/vocab.ts` übersetzt die
 gängigen EU-Authority-Codes ins Deutsche.
 
-Nach einem Neubau von EMFTs:
+## EMFTs-Abhängigkeiten
+
+Die drei EMFTs-Pakete kommen aus der npm-Registry, exakt gepinnt:
+
+| Paket | Version |
+| --- | --- |
+| `@emfts/core` | `0.2.0-next.1` |
+| `@emfts/vue-registry` | `0.0.1-next.1` |
+| `@emfts/uimodel-composer` | `0.0.2-next.1` |
+
+Exakte Versionen statt `^`-Bereiche, weil es Vorabversionen sind — bei
+Prereleases greifen semver-Bereiche nicht so, wie man es erwartet. Zum Anheben
+die Version in `package.json` setzen und `npm install` laufen lassen; welche
+Vorabversion die neueste ist, sagt `npm view @emfts/core dist-tags`.
+
+`@emfts/uimodel-composer` und `@emfts/vue-registry` bringen jeweils eine eigene,
+ältere `@emfts/core` mit. Das ist gewollt und funktioniert: der Bootstrap in
+`src/emf/loadResources.ts` setzt `UimodelPackage.eINSTANCE` ausdrücklich in die
+Registry der äußeren `@emfts/core`.
+
+Gegen einen lokalen EMFTs-Baum entwickeln, ohne die gepinnten Versionen
+anzufassen:
 
 ```bash
+npm install --no-save ../EMFTs/emfts ../EMFTs/emfts-vue-registry \
+                      ../EMFTs/uimodel-composer/packages/uimodel-composer
 rm -rf node_modules/.vite && npm run dev
 ```
+
+`--no-save` hält `package.json` und `package-lock.json` frei von `file:`-Verweisen.
+Zurück auf die publizierten Pakete: `npm ci`.
 
 ## Aufbau
 

@@ -26,7 +26,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     optimizeDeps: {
-      // Don't pre-bundle file:-linked deps — Vite's tree-shaking breaks internal imports
+      // Die EMFTs-Pakete nicht vorbündeln — Vites Tree-Shaking bricht deren
+      // interne Imports. Galt schon für die früheren file:-Verweise und bleibt
+      // konservativ auch für die npm-Pakete.
       exclude: ['@emfts/core', '@emfts/vue-registry', '@emfts/uimodel-composer'],
     },
     server: {

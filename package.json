@@ -9,9 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@emfts/core": "file:../EMFTs/emfts",
-    "@emfts/vue-registry": "file:../EMFTs/emfts-vue-registry",
-    "@emfts/uimodel-composer": "file:../EMFTs/uimodel-composer/packages/uimodel-composer",
+    "@emfts/core": "0.2.0-next.1",
+    "@emfts/vue-registry": "0.0.1-next.1",
+    "@emfts/uimodel-composer": "0.0.2-next.1",
     "vue": "^3.4.0",
     "vue-router": "^4.3.0"
   },
