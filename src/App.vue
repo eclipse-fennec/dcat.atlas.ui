@@ -418,7 +418,10 @@ const catalogViews = computed(() => {
       <!-- Header / Hero -->
       <header class="hero">
         <div class="hero__content">
-          <h1 class="hero__title">{{ portalTitle }}</h1>
+          <div class="hero__brand">
+            <img class="hero__logo" src="/dcat.svg" alt="" />
+            <h1 class="hero__title">{{ portalTitle }}</h1>
+          </div>
           <p class="hero__desc">{{ portalDescription }}</p>
           <div class="hero__search">
             <input
@@ -655,7 +658,11 @@ a:hover { text-decoration: underline; }
    dieselbe linke Kante haben. Die Fließtextbreite begrenzt stattdessen .hero__desc. */
 .hero { background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); color: #fff; padding: 2.5rem 0 2rem; }
 .hero__content { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
-.hero__title { font-size: 1.6rem; font-weight: 700; margin-bottom: .5rem; }
+/* Logo und Portal-Titel auf einer Grundlinie; der Abstand nach unten liegt am
+   Container, damit der Titel im Flex-Kontext nicht gegen das Logo versetzt. */
+.hero__brand { display: flex; align-items: center; gap: .9rem; margin-bottom: .5rem; }
+.hero__logo { height: 3rem; width: auto; flex: none; }
+.hero__title { font-size: 1.6rem; font-weight: 700; }
 .hero__desc { font-size: .92rem; opacity: .9; line-height: 1.5; margin-bottom: 1.2rem; max-width: 46rem; }
 .hero__search { margin-bottom: .8rem; }
 .search-input {
