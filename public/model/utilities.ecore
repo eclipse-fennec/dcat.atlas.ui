@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Ausschnitt des Fennec-Utilities-Modells (org.eclipse.fennec.model,
+  nsURI https://org.eclipse/fennec/utils/1.0).
+
+  Sammlungsantworten der DCAT.Atlas-Leseseite kommen in diesem Umschlag:
+
+    <util:Response resultSize="1">
+      <data xsi:type="dcat:Catalog" about="…">…</data>
+    </util:Response>
+
+  Das Original-Ecore liegt nicht im veröffentlichten Bundle (dort steht nur
+  generierter Java-Code), deshalb hier die eine Klasse, die der Viewer braucht.
+  `data` ist absichtlich EObject: den konkreten Typ nennt das `xsi:type` der
+  Antwort, EMFTS löst ihn über die Package-Registry auf.
+-->
+<ecore:EPackage xmi:version="2.0"
+    xmlns:xmi="http://www.omg.org/XMI"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore"
+    name="utilities"
+    nsURI="https://org.eclipse/fennec/utils/1.0"
+    nsPrefix="util">
+  <eClassifiers xsi:type="ecore:EClass" name="Response">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="timestamp"
+        eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDate"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="resultSize"
+        eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="responseCode"
+        eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="responseMessage"
+        eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="data" upperBound="-1"
+        eType="ecore:EClass http://www.eclipse.org/emf/2002/Ecore#//EObject"
+        containment="true"/>
+  </eClassifiers>
+</ecore:EPackage>

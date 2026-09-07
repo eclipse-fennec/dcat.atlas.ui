@@ -1,0 +1,157 @@
+# Baut das Viewer-Image und veröffentlicht es in der GitHub Container Registry
+# (ghcr.io) dieses Repositories.
+#
+# Die Reihenfolge ist Absicht: bauen -> starten -> prüfen, ob es ausliefert ->
+# erst dann pushen. Zuerst zu veröffentlichen und danach zu testen ließe ein
+# kaputtes `latest` in der Registry stehen, solange bis jemand nachschaut.
+#
+# Pull Requests bauen und prüfen, veröffentlichen aber nie.
+
+name: Container-Images
+
+on:
+  push:
+    branches: [snapshot, main]
+    tags: ['v*']
+    # Reine Dokumentationsänderungen bauen nichts neu.
+    paths-ignore: ['**/*.md']
+  pull_request:
+    paths-ignore: ['**/*.md']
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write        # nötig, um nach ghcr.io zu pushen
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Der Registry-Namensraum muss klein geschrieben sein, der
+      # Repository-Eigentümer ist es nicht notwendigerweise
+      # (eclipse-fennec/dcat.atlas.ui ist es, aber darauf verlassen wir uns nicht).
+      - name: Namen und Tags bestimmen
+        id: meta
+        run: |
+          echo "ns=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          # Ein Branch-Name darf Zeichen enthalten, die ein Tag nicht darf.
+          echo "ref=$(echo "${GITHUB_REF_NAME}" | tr '/' '-' | tr -cd '[:alnum:]._-')" >> "$GITHUB_OUTPUT"
+          # Die Paketversion, als sprechendes Tag neben dem SHA.
+          echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Bei ghcr.io anmelden
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # `bake` liest die Build-Abschnitte aus der Compose-Datei, das Image ist
+      # damit an genau einer Stelle definiert und kann nicht von dem abweichen,
+      # was `docker compose build` lokal baut.
+      - name: Image bauen
+        working-directory: deploy
+        run: |
+          # --allow=fs.read=..: der Build-Context ist die Repository-Wurzel, eine
+          # Ebene über dieser Datei. Neuere buildx verweigern einen Context
+          # außerhalb des bake-Verzeichnisses, solange er nicht ausdrücklich
+          # erlaubt ist.
+          docker buildx bake -f docker-compose.yml \
+            --allow=fs.read=.. \
+            --set '*.cache-from=type=gha' \
+            --set '*.cache-to=type=gha,mode=max' \
+            --load
+
+      # Der eigentliche Test: liefert der Container aus? Ein Image, das baut,
+      # aber nicht startet — eine nicht ersetzte Template-Variable genügt —
+      # fällt sonst erst beim Deployment auf.
+      #
+      # Das Portal läuft hier absichtlich nicht mit: sein Image braucht die
+      # SHACL-Shapes als Mount und wird ohne sie nie ready. Dass der Proxy
+      # greift, lässt sich ohne Portal sogar schärfer zeigen (siehe unten).
+      - name: Container starten und prüfen
+        working-directory: deploy
+        run: |
+          set -euo pipefail
+          docker compose up -d --no-build
+
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 3 http://localhost:8081/ >/dev/null 2>&1; then break; fi
+            sleep 2
+          done
+
+          echo "--- Die App"
+          # grep -c statt -q: -q beendet grep beim ersten Treffer, curl bekommt
+          # EPIPE und endet mit Exit 23 — ein zeitabhängiger Flake.
+          curl -fsS --max-time 5 http://localhost:8081/ | grep -c '<div id="app">' >/dev/null
+          echo "    index.html ausgeliefert"
+          curl -fsS --max-time 5 http://localhost:8081/ | grep -c 'rel="icon"' >/dev/null
+          echo "    Favicon verlinkt"
+
+          echo "--- Statische Anteile, die der Viewer zum Start braucht"
+          curl -fsS --max-time 5 http://localhost:8081/model/dcatap.ecore | grep -c "EPackage" >/dev/null
+          echo "    Ecore-Metamodell ausgeliefert"
+          curl -fsS --max-time 5 http://localhost:8081/model/dcatap-uimodel.xmi >/dev/null
+          echo "    UIModel ausgeliefert"
+
+          # Regressionstest. Die Proxy-Regel muss auf '/dcat/' ankern: als
+          # blanker Prefix '/dcat' fängt sie auch diese Datei und schickt das
+          # Logo an den Portal-Server, der mit 502 antwortet. Genau so war es.
+          test "$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://localhost:8081/dcat.svg)" = "200"
+          echo "    /dcat.svg kommt vom Dateisystem, nicht aus dem Proxy"
+
+          echo "--- Der Portal-Proxy"
+          # Kein Portal dahinter, also ist 502 die richtige Antwort — und der
+          # Beweis, dass der Proxy greift: käme hier 404, hätte der
+          # Static-Handler den Pfad genommen und die API wäre nie erreichbar.
+          code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://localhost:8081/dcat/rest/datasets)"
+          test "$code" = "502" || { echo "erwartet 502 (Proxy ohne Portal), bekommen $code"; exit 1; }
+          echo "    /dcat/rest/ wird weitergereicht (502 ohne Portal)"
+          # Dass nginx überhaupt startet, wenn der Upstream fehlt, ist nicht
+          # selbstverständlich — es ist der Grund für die Variable in proxy_pass.
+          echo "    nginx läuft trotz fehlendem Upstream"
+
+      - name: Logs bei Fehlschlag
+        if: failure()
+        working-directory: deploy
+        run: docker compose logs --tail 50
+
+      - name: Container stoppen
+        if: always()
+        working-directory: deploy
+        run: docker compose down -v
+
+      # Nur geprüfte Images werden veröffentlicht. `latest` bleibt dem
+      # Standard-Branch vorbehalten, damit ein Feature-Branch es nicht belegt.
+      - name: Image veröffentlichen
+        if: github.event_name != 'pull_request'
+        env:
+          NS: ${{ steps.meta.outputs.ns }}
+          SHA: ${{ steps.meta.outputs.sha }}
+          REF: ${{ steps.meta.outputs.ref }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          src="dcat-atlas-ui:latest"
+          for tag in "$SHA" "$REF" "$VERSION"; do
+            docker tag "$src" "${NS}:${tag}"
+            docker push "${NS}:${tag}"
+          done
+          if [ "${GITHUB_REF_NAME}" = "${{ github.event.repository.default_branch }}" ]; then
+            docker tag "$src" "${NS}:latest"
+            docker push "${NS}:latest"
+          fi
+          echo "### Veröffentlichtes Image" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`${NS}:${SHA}\` (auch \`:${REF}\`, \`:${VERSION}\`)" >> "$GITHUB_STEP_SUMMARY"

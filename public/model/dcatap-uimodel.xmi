@@ -1,0 +1,540 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xmi:XMI xmi:version="2.0"
+    xmlns:xmi="http://www.omg.org/XMI"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:uimodel="http://uimodel/1.0"
+    xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore">
+
+  <!-- ============================================================
+       UIModel für Catalog (Startseite / Katalogübersicht)
+       Orientiert an wissensallmende.jena.de
+       ============================================================ -->
+
+  <uimodel:UIModel name="CatalogOverview" priority="10">
+    <targetClasses href="dcatap.ecore#//Catalog"/>
+
+    <!-- Globale Styles -->
+    <styles xsi:type="uimodel:LayoutStyle" name="portalGrid" layout="GRID"
+        css="uimodel-portal-grid gap-6 p-6"/>
+    <styles xsi:type="uimodel:LayoutStyle" name="viewerSection" layout="VERTICAL"
+        css="uimodel-section bg-white rounded-lg shadow-sm border p-6 mb-4"/>
+    <styles xsi:type="uimodel:WidgetStyle" name="readOnlyField" readOnly="true"
+        css="uimodel-readonly-field"/>
+    <styles xsi:type="uimodel:WidgetStyle" name="tagStyle"
+        css="uimodel-tag inline-block bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-sm mr-2 mb-2"/>
+
+    <!-- Hauptkomponente: MasterDetail -->
+    <components xsi:type="uimodel:MasterDetail" name="catalogMasterDetail">
+      <styles href="#//@styles.0"/>  <!-- portalGrid -->
+
+      <!-- Master: Dataset-Tabelle -->
+      <master xsi:type="uimodel:TableView" name="datasetList">
+        <tableStyle name="datasetTableStyle"
+            css="uimodel-dataset-table w-full">
+          <columns name="titleColumn" label="Titel" order="1">
+            <feature href="dcatap.ecore#//DcatResource/title"/>
+          </columns>
+          <columns name="publisherColumn" label="Herausgeber" order="2">
+            <feature href="dcatap.ecore#//DcatResource/publisher"/>
+          </columns>
+          <columns name="themeColumn" label="Kategorie" order="3">
+            <feature href="dcatap.ecore#//DcatResource/theme"/>
+          </columns>
+          <columns name="modifiedColumn" label="Aktualisiert" order="4" widgetType="DATE">
+            <feature href="dcatap.ecore#//DcatResource/modified"/>
+          </columns>
+          <columns name="formatColumn" label="Formate" order="5">
+            <feature href="dcatap.ecore#//Dataset/distribution"/>
+          </columns>
+        </tableStyle>
+      </master>
+
+      <!-- Detail: Tabs für ausgewählten Datensatz -->
+      <detail xsi:type="uimodel:TabView" name="datasetDetailTabs">
+
+        <!-- Tab 1: Übersicht (Summary) -->
+        <tabs xsi:type="uimodel:SummaryView" name="Übersicht">
+          <summaryFields xsi:type="uimodel:InputWidget" name="summaryTitle" label="Titel" readOnly="true">
+            <feature href="dcatap.ecore#//DcatResource/title"/>
+          </summaryFields>
+          <summaryFields xsi:type="uimodel:TextAreaWidget" name="summaryDescription" label="Beschreibung" readOnly="true" rows="6">
+            <feature href="dcatap.ecore#//DcatResource/description"/>
+          </summaryFields>
+          <summaryFields xsi:type="uimodel:InputWidget" name="summaryPublisher" label="Herausgeber" readOnly="true">
+            <feature href="dcatap.ecore#//DcatResource/publisher"/>
+          </summaryFields>
+          <summaryFields xsi:type="uimodel:InputWidget" name="summaryKeywords" label="Schlagwörter" readOnly="true">
+            <feature href="dcatap.ecore#//DcatResource/keyword"/>
+            <styles href="#//@styles.3"/>  <!-- tagStyle -->
+          </summaryFields>
+          <summaryFields xsi:type="uimodel:InputWidget" name="summaryTheme" label="Kategorie" readOnly="true">
+            <feature href="dcatap.ecore#//DcatResource/theme"/>
+            <styles href="#//@styles.3"/>  <!-- tagStyle -->
+          </summaryFields>
+          <summaryFields xsi:type="uimodel:InputWidget" name="summaryLicense" label="Lizenz" readOnly="true">
+            <feature href="dcatap.ecore#//DcatResource/license"/>
+          </summaryFields>
+        </tabs>
+
+        <!-- Tab 2: Details (SectionView mit Formularfeldern) -->
+        <tabs xsi:type="uimodel:SectionView" name="Details">
+
+          <!-- Section: Allgemeine Informationen -->
+          <sections name="Allgemein">
+            <styles href="#//@styles.1"/>  <!-- viewerSection -->
+            <fields xsi:type="uimodel:InputWidget" name="detailIdentifier" label="Kennung" readOnly="true">
+              <feature href="dcatap.ecore#//DcatResource/identifier"/>
+            </fields>
+            <fields xsi:type="uimodel:InputWidget" name="detailTitle" label="Titel" readOnly="true">
+              <feature href="dcatap.ecore#//DcatResource/title"/>
+            </fields>
+            <fields xsi:type="uimodel:TextAreaWidget" name="detailDescription" label="Beschreibung" readOnly="true" rows="4">
+              <feature href="dcatap.ecore#//DcatResource/description"/>
+            </fields>
+            <fields xsi:type="uimodel:InputWidget" name="detailPublisher" label="Herausgeber" readOnly="true">
+              <feature href="dcatap.ecore#//DcatResource/publisher"/>
+            </fields>
+            <fields xsi:type="uimodel:InputWidget" name="detailCreator" label="Ersteller" readOnly="true">
+              <feature href="dcatap.ecore#//DcatResource/creator"/>
+            </fields>
+            <fields xsi:type="uimodel:InputWidget" name="detailContactPoint" label="Kontakt" readOnly="true">
+              <feature href="dcatap.ecore#//DcatResource/contactPoint"/>
+            </fields>
+          </sections>
+
+          <!-- Section: Klassifikation -->
+          <sections name="Klassifikation">
+            <styles href="#//@styles.1"/>
+            <fields xsi:type="uimodel:ComboboxWidget" name="detailTheme" label="Kategorien" readOnly="true" multiSelect="true">
+              <feature href="dcatap.ecore#//DcatResource/theme"/>
+              <optionLabel language="OCL" body="self.prefLabel"/>
+            </fields>
+            <fields xsi:type="uimodel:InputWidget" name="detailKeywords" label="Schlagwörter" readOnly="true">
+              <feature href="dcatap.ecore#//DcatResource/keyword"/>
+            </fields>
+            <fields xsi:type="uimodel:SelectWidget" name="detailLanguage" label="Sprache" readOnly="true" multiSelect="true">
+              <feature href="dcatap.ecore#//DcatResource/language"/>
+            </fields>
+            <fields xsi:type="uimodel:InputWidget" name="detailType" label="Typ" readOnly="true">
+              <feature href="dcatap.ecore#//DcatResource/type"/>
+            </fields>
+          </sections>
+
+          <!-- Section: Zeitlich & Räumlich -->
+          <sections name="Zeitlich &amp; Räumlich">
+            <styles href="#//@styles.1"/>
+            <fields xsi:type="uimodel:DateWidget" name="detailIssued" label="Veröffentlicht" readOnly="true" format="DD.MM.YYYY">
+              <feature href="dcatap.ecore#//DcatResource/issued"/>
+            </fields>
+            <fields xsi:type="uimodel:DateWidget" name="detailModified" label="Zuletzt geändert" readOnly="true" format="DD.MM.YYYY">
+              <feature href="dcatap.ecore#//DcatResource/modified"/>
+            </fields>
+            <fields xsi:type="uimodel:InputWidget" name="detailSpatial" label="Räumliche Abdeckung" readOnly="true">
+              <feature href="dcatap.ecore#//Dataset/spatial"/>
+            </fields>
+            <fields xsi:type="uimodel:InputWidget" name="detailTemporal" label="Zeitliche Abdeckung" readOnly="true">
+              <feature href="dcatap.ecore#//Dataset/temporal"/>
+            </fields>
+            <fields xsi:type="uimodel:InputWidget" name="detailAccrualPeriodicity" label="Aktualisierungsfrequenz" readOnly="true">
+              <feature href="dcatap.ecore#//Dataset/accrualPeriodicity"/>
+            </fields>
+            <fields xsi:type="uimodel:NumberWidget" name="detailSpatialResolution" label="Räumliche Auflösung (m)" readOnly="true">
+              <feature href="dcatap.ecore#//Dataset/spatialResolutionInMeters"/>
+            </fields>
+            <fields xsi:type="uimodel:InputWidget" name="detailTemporalResolution" label="Zeitliche Auflösung" readOnly="true">
+              <feature href="dcatap.ecore#//Dataset/temporalResolution"/>
+            </fields>
+          </sections>
+
+          <!-- Section: Zugang & Rechte -->
+          <sections name="Zugang &amp; Rechte">
+            <styles href="#//@styles.1"/>
+            <fields xsi:type="uimodel:InputWidget" name="detailAccessRights" label="Zugriffsrechte" readOnly="true">
+              <feature href="dcatap.ecore#//DcatResource/accessRights"/>
+            </fields>
+            <fields xsi:type="uimodel:ReferenceLinkWidget" name="detailLicense" label="Lizenz" targetRoute="/license/{about}">
+              <feature href="dcatap.ecore#//DcatResource/license"/>
+              <displayExpression language="OCL" body="self.title"/>
+            </fields>
+            <fields xsi:type="uimodel:ReferenceLinkWidget" name="detailConformsTo" label="Konformität" targetRoute="/standard/{about}">
+              <feature href="dcatap.ecore#//DcatResource/conformsTo"/>
+              <displayExpression language="OCL" body="self.title"/>
+            </fields>
+            <fields xsi:type="uimodel:ReferenceLinkWidget" name="detailLandingPage" label="Webseite" targetRoute="{about}">
+              <feature href="dcatap.ecore#//DcatResource/landingPage"/>
+              <displayExpression language="OCL" body="self.about"/>
+            </fields>
+          </sections>
+
+        </tabs>
+
+        <!-- Tab 3: Distributionen -->
+        <tabs xsi:type="uimodel:TableView" name="Distributionen">
+          <tableStyle name="distributionTableStyle"
+              css="uimodel-distribution-table w-full">
+            <columns name="distTitleColumn" label="Titel" order="1">
+              <feature href="dcatap.ecore#//Distribution/title"/>
+            </columns>
+            <columns name="distFormatColumn" label="Format" order="2">
+              <feature href="dcatap.ecore#//Distribution/format"/>
+            </columns>
+            <columns name="distMediaTypeColumn" label="Medientyp" order="3">
+              <feature href="dcatap.ecore#//Distribution/mediaType"/>
+            </columns>
+            <columns name="distAccessURLColumn" label="Zugangs-URL" order="4">
+              <feature href="dcatap.ecore#//Distribution/accessURL"/>
+            </columns>
+            <columns name="distDownloadURLColumn" label="Download-URL" order="5">
+              <feature href="dcatap.ecore#//Distribution/downloadURL"/>
+            </columns>
+            <columns name="distByteSizeColumn" label="Größe" order="6" widgetType="NUMBER">
+              <feature href="dcatap.ecore#//Distribution/byteSize"/>
+            </columns>
+            <columns name="distLicenseColumn" label="Lizenz" order="7">
+              <feature href="dcatap.ecore#//Distribution/license"/>
+            </columns>
+          </tableStyle>
+        </tabs>
+
+      </detail>
+
+    </components>
+  </uimodel:UIModel>
+
+
+  <!-- ============================================================
+       UIModel für Dataset (Detailansicht)
+       ============================================================ -->
+
+  <uimodel:UIModel name="DatasetDetail" priority="10">
+    <targetClasses href="dcatap.ecore#//Dataset"/>
+
+    <styles xsi:type="uimodel:LayoutStyle" name="detailLayout" layout="VERTICAL"
+        css="uimodel-dataset-detail max-w-4xl mx-auto p-6"/>
+    <styles xsi:type="uimodel:LayoutStyle" name="sectionCard" layout="VERTICAL"
+        css="uimodel-section-card bg-white rounded-lg shadow-sm border p-6 mb-6"/>
+    <styles xsi:type="uimodel:WidgetStyle" name="fieldReadOnly" readOnly="true"
+        css="uimodel-field-readonly"/>
+    <styles xsi:type="uimodel:WidgetStyle" name="urlField"
+        css="uimodel-url-field text-blue-600 underline cursor-pointer"/>
+
+    <components xsi:type="uimodel:SectionView" name="datasetSections">
+      <styles href="#//@styles.0"/>  <!-- detailLayout -->
+
+      <!-- Section 1: Allgemein -->
+      <sections name="Allgemeine Informationen">
+        <styles href="#//@styles.1"/>  <!-- sectionCard -->
+
+        <fields xsi:type="uimodel:InputWidget" name="dsTitle" label="Titel" required="true">
+          <feature href="dcatap.ecore#//DcatResource/title"/>
+          <validations language="OCL" body="self.title->notEmpty()" defaultMessage="Titel ist erforderlich" severity="ERROR"/>
+        </fields>
+        <fields xsi:type="uimodel:TextAreaWidget" name="dsDescription" label="Beschreibung" required="true" rows="6" maxLength="2000">
+          <feature href="dcatap.ecore#//DcatResource/description"/>
+          <validations language="OCL" body="self.description->notEmpty()" defaultMessage="Beschreibung ist erforderlich" severity="ERROR"/>
+        </fields>
+        <fields xsi:type="uimodel:InputWidget" name="dsIdentifier" label="Kennung">
+          <feature href="dcatap.ecore#//DcatResource/identifier"/>
+        </fields>
+        <fields xsi:type="uimodel:ComboboxWidget" name="dsPublisher" label="Herausgeber" required="true">
+          <feature href="dcatap.ecore#//DcatResource/publisher"/>
+          <optionLabel language="OCL" body="self.name"/>
+        </fields>
+        <fields xsi:type="uimodel:ComboboxWidget" name="dsCreator" label="Ersteller">
+          <feature href="dcatap.ecore#//DcatResource/creator"/>
+          <optionLabel language="OCL" body="self.name"/>
+        </fields>
+        <fields xsi:type="uimodel:InputWidget" name="dsContactName" label="Kontaktperson">
+          <feature href="dcatap.ecore#//DcatResource/contactPoint"/>
+        </fields>
+      </sections>
+
+      <!-- Section 2: Klassifikation -->
+      <sections name="Klassifikation">
+        <styles href="#//@styles.1"/>
+
+        <fields xsi:type="uimodel:ComboboxWidget" name="dsTheme" label="Kategorien" multiSelect="true" minSearchLength="1">
+          <feature href="dcatap.ecore#//DcatResource/theme"/>
+          <optionLabel language="OCL" body="self.prefLabel"/>
+        </fields>
+        <fields xsi:type="uimodel:ComboboxWidget" name="dsKeyword" label="Schlagwörter" multiSelect="true" minSearchLength="1">
+          <feature href="dcatap.ecore#//DcatResource/keyword"/>
+          <optionLabel language="OCL" body="self.value"/>
+        </fields>
+        <fields xsi:type="uimodel:SelectWidget" name="dsLanguage" label="Sprache" multiSelect="true">
+          <feature href="dcatap.ecore#//DcatResource/language"/>
+          <optionLabel language="OCL" body="self.about"/>
+        </fields>
+        <fields xsi:type="uimodel:SelectWidget" name="dsAccessRights" label="Zugriffsrechte">
+          <feature href="dcatap.ecore#//DcatResource/accessRights"/>
+          <optionLabel language="OCL" body="self.prefLabel"/>
+        </fields>
+      </sections>
+
+      <!-- Section 3: Zeitlich & Räumlich -->
+      <sections name="Zeitlich &amp; Räumlich">
+        <styles href="#//@styles.1"/>
+
+        <fields xsi:type="uimodel:DateWidget" name="dsIssued" label="Veröffentlichungsdatum" format="DD.MM.YYYY">
+          <feature href="dcatap.ecore#//DcatResource/issued"/>
+        </fields>
+        <fields xsi:type="uimodel:DateWidget" name="dsModified" label="Letzte Änderung" format="DD.MM.YYYY">
+          <feature href="dcatap.ecore#//DcatResource/modified"/>
+        </fields>
+        <fields xsi:type="uimodel:DateWidget" name="dsTemporalStart" label="Zeitraum von" format="DD.MM.YYYY">
+          <feature href="dcatap.ecore#//Dataset/temporal"/>
+        </fields>
+        <fields xsi:type="uimodel:DateWidget" name="dsTemporalEnd" label="Zeitraum bis" format="DD.MM.YYYY">
+          <feature href="dcatap.ecore#//Dataset/temporal"/>
+        </fields>
+        <fields xsi:type="uimodel:ComboboxWidget" name="dsSpatial" label="Räumliche Abdeckung" multiSelect="true">
+          <feature href="dcatap.ecore#//Dataset/spatial"/>
+          <optionLabel language="OCL" body="self.prefLabel"/>
+        </fields>
+        <fields xsi:type="uimodel:SelectWidget" name="dsAccrualPeriodicity" label="Aktualisierungsfrequenz">
+          <feature href="dcatap.ecore#//Dataset/accrualPeriodicity"/>
+          <optionLabel language="OCL" body="self.prefLabel"/>
+        </fields>
+        <fields xsi:type="uimodel:NumberWidget" name="dsSpatialResolution" label="Räumliche Auflösung (Meter)" min="0" step="0.1">
+          <feature href="dcatap.ecore#//Dataset/spatialResolutionInMeters"/>
+        </fields>
+        <fields xsi:type="uimodel:InputWidget" name="dsTemporalResolution" label="Zeitliche Auflösung (ISO 8601)" placeholder="z.B. PT1H, P1D">
+          <feature href="dcatap.ecore#//Dataset/temporalResolution"/>
+        </fields>
+      </sections>
+
+      <!-- Section 4: Rechtliches -->
+      <sections name="Rechtliches &amp; Zugang">
+        <styles href="#//@styles.1"/>
+
+        <fields xsi:type="uimodel:ComboboxWidget" name="dsLicense" label="Lizenz">
+          <feature href="dcatap.ecore#//DcatResource/license"/>
+          <optionLabel language="OCL" body="self.title"/>
+        </fields>
+        <fields xsi:type="uimodel:ReferenceLinkWidget" name="dsConformsTo" label="Konformität" targetRoute="/standard/{about}">
+          <feature href="dcatap.ecore#//DcatResource/conformsTo"/>
+          <displayExpression language="OCL" body="self.title"/>
+        </fields>
+        <fields xsi:type="uimodel:ReferenceLinkWidget" name="dsLandingPage" label="Webseite" targetRoute="{about}">
+          <feature href="dcatap.ecore#//DcatResource/landingPage"/>
+          <displayExpression language="OCL" body="self.about"/>
+        </fields>
+
+        <!-- Cross-Field-Validation -->
+        <validations language="OCL"
+            body="self.license->notEmpty() or self.accessRights->notEmpty()"
+            defaultMessage="Lizenz oder Zugriffsrechte müssen angegeben werden"
+            severity="WARNING"/>
+      </sections>
+
+    </components>
+  </uimodel:UIModel>
+
+
+  <!-- ============================================================
+       UIModel für Distribution (Inline-Detail)
+       ============================================================ -->
+
+  <uimodel:UIModel name="DistributionDetail" priority="10">
+    <targetClasses href="dcatap.ecore#//Distribution"/>
+
+    <styles xsi:type="uimodel:LayoutStyle" name="distributionLayout" layout="VERTICAL"
+        css="uimodel-distribution-detail bg-gray-50 rounded-lg border p-4"/>
+    <styles xsi:type="uimodel:WidgetStyle" name="urlField"
+        css="uimodel-url-field text-blue-600 underline"/>
+
+    <components xsi:type="uimodel:FormView" name="distributionForm">
+      <styles href="#//@styles.0"/>
+
+      <fields xsi:type="uimodel:InputWidget" name="distTitle" label="Titel">
+        <feature href="dcatap.ecore#//Distribution/title"/>
+      </fields>
+      <fields xsi:type="uimodel:TextAreaWidget" name="distDescription" label="Beschreibung" rows="3">
+        <feature href="dcatap.ecore#//Distribution/description"/>
+      </fields>
+      <fields xsi:type="uimodel:SelectWidget" name="distFormat" label="Format">
+        <feature href="dcatap.ecore#//Distribution/format"/>
+        <optionLabel language="OCL" body="self.prefLabel"/>
+      </fields>
+      <fields xsi:type="uimodel:InputWidget" name="distMediaType" label="Medientyp" placeholder="z.B. text/csv, application/json">
+        <feature href="dcatap.ecore#//Distribution/mediaType"/>
+      </fields>
+      <fields xsi:type="uimodel:InputWidget" name="distAccessURL" label="Zugangs-URL" required="true">
+        <feature href="dcatap.ecore#//Distribution/accessURL"/>
+        <styles href="#//@styles.1"/>
+        <validations language="OCL" body="self.accessURL->notEmpty()" defaultMessage="Zugangs-URL ist erforderlich" severity="ERROR"/>
+      </fields>
+      <fields xsi:type="uimodel:InputWidget" name="distDownloadURL" label="Download-URL">
+        <feature href="dcatap.ecore#//Distribution/downloadURL"/>
+        <styles href="#//@styles.1"/>
+      </fields>
+      <fields xsi:type="uimodel:NumberWidget" name="distByteSize" label="Dateigröße (Bytes)" min="0" step="1">
+        <feature href="dcatap.ecore#//Distribution/byteSize"/>
+      </fields>
+      <fields xsi:type="uimodel:ComboboxWidget" name="distLicense" label="Lizenz">
+        <feature href="dcatap.ecore#//Distribution/license"/>
+        <optionLabel language="OCL" body="self.title"/>
+      </fields>
+      <fields xsi:type="uimodel:DateWidget" name="distIssued" label="Veröffentlicht" format="DD.MM.YYYY">
+        <feature href="dcatap.ecore#//Distribution/issued"/>
+      </fields>
+      <fields xsi:type="uimodel:DateWidget" name="distModified" label="Zuletzt geändert" format="DD.MM.YYYY">
+        <feature href="dcatap.ecore#//Distribution/modified"/>
+      </fields>
+
+      <!-- Validierungsmapper: Fehlende Download-URL als Warnung statt Fehler -->
+      <validationMappers order="1"
+          matchCode="MISSING_DOWNLOAD_URL"
+          mappedSeverity="WARNING"
+          mappedText="Download-URL ist optional, empfohlen für direkte Downloads."/>
+    </components>
+  </uimodel:UIModel>
+
+
+  <!-- ============================================================
+       UIModel für DataService
+       ============================================================ -->
+
+  <uimodel:UIModel name="DataServiceDetail" priority="10">
+    <targetClasses href="dcatap.ecore#//DataService"/>
+
+    <styles xsi:type="uimodel:LayoutStyle" name="serviceLayout" layout="VERTICAL"
+        css="uimodel-service-detail max-w-3xl mx-auto p-6"/>
+    <styles xsi:type="uimodel:LayoutStyle" name="serviceCard" layout="VERTICAL"
+        css="uimodel-service-card bg-white rounded-lg shadow-sm border p-6"/>
+    <styles xsi:type="uimodel:WidgetStyle" name="endpointUrl"
+        css="uimodel-endpoint-url font-mono text-sm bg-gray-100 rounded px-2 py-1"/>
+
+    <components xsi:type="uimodel:SectionView" name="serviceSections">
+      <styles href="#//@styles.0"/>
+
+      <sections name="Service-Informationen">
+        <styles href="#//@styles.1"/>
+
+        <fields xsi:type="uimodel:InputWidget" name="svcTitle" label="Titel" required="true">
+          <feature href="dcatap.ecore#//DcatResource/title"/>
+        </fields>
+        <fields xsi:type="uimodel:TextAreaWidget" name="svcDescription" label="Beschreibung" rows="4">
+          <feature href="dcatap.ecore#//DcatResource/description"/>
+        </fields>
+        <fields xsi:type="uimodel:InputWidget" name="svcEndpointURL" label="Endpoint-URL" required="true">
+          <feature href="dcatap.ecore#//DataService/endpointURL"/>
+          <styles href="#//@styles.2"/>
+          <validations language="OCL" body="self.endpointURL->notEmpty()" defaultMessage="Endpoint-URL ist erforderlich" severity="ERROR"/>
+        </fields>
+        <fields xsi:type="uimodel:InputWidget" name="svcEndpointDescription" label="Endpoint-Beschreibung (URL)">
+          <feature href="dcatap.ecore#//DataService/endpointDescription"/>
+          <styles href="#//@styles.2"/>
+        </fields>
+        <fields xsi:type="uimodel:ReferenceLinkWidget" name="svcServesDataset" label="Bedient Datensatz" targetRoute="/dataset/{about}">
+          <feature href="dcatap.ecore#//DataService/servesDataset"/>
+          <displayExpression language="OCL" body="self.title->first()"/>
+        </fields>
+        <fields xsi:type="uimodel:ComboboxWidget" name="svcPublisher" label="Herausgeber">
+          <feature href="dcatap.ecore#//DcatResource/publisher"/>
+          <optionLabel language="OCL" body="self.name"/>
+        </fields>
+        <fields xsi:type="uimodel:ComboboxWidget" name="svcLicense" label="Lizenz">
+          <feature href="dcatap.ecore#//DcatResource/license"/>
+          <optionLabel language="OCL" body="self.title"/>
+        </fields>
+        <fields xsi:type="uimodel:ReferenceLinkWidget" name="svcConformsTo" label="Konformität" targetRoute="/standard/{about}">
+          <feature href="dcatap.ecore#//DcatResource/conformsTo"/>
+          <displayExpression language="OCL" body="self.title"/>
+        </fields>
+      </sections>
+
+    </components>
+  </uimodel:UIModel>
+
+
+  <!-- ============================================================
+       UIModel für CatalogRecord
+       ============================================================ -->
+
+  <uimodel:UIModel name="CatalogRecordDetail" priority="10">
+    <targetClasses href="dcatap.ecore#//CatalogRecord"/>
+
+    <styles xsi:type="uimodel:LayoutStyle" name="recordLayout" layout="VERTICAL"
+        css="uimodel-record-detail bg-white rounded-lg shadow-sm border p-6"/>
+
+    <components xsi:type="uimodel:FormView" name="catalogRecordForm">
+      <styles href="#//@styles.0"/>
+
+      <fields xsi:type="uimodel:InputWidget" name="recTitle" label="Titel" readOnly="true">
+        <feature href="dcatap.ecore#//CatalogRecord/title"/>
+      </fields>
+      <fields xsi:type="uimodel:TextAreaWidget" name="recDescription" label="Beschreibung" readOnly="true" rows="3">
+        <feature href="dcatap.ecore#//CatalogRecord/description"/>
+      </fields>
+      <fields xsi:type="uimodel:DateWidget" name="recIssued" label="Erstellt" readOnly="true" format="DD.MM.YYYY">
+        <feature href="dcatap.ecore#//CatalogRecord/issued"/>
+      </fields>
+      <fields xsi:type="uimodel:DateWidget" name="recModified" label="Zuletzt geändert" readOnly="true" format="DD.MM.YYYY">
+        <feature href="dcatap.ecore#//CatalogRecord/modified"/>
+      </fields>
+      <fields xsi:type="uimodel:ReferenceLinkWidget" name="recPrimaryTopic" label="Primäres Thema" targetRoute="/dataset/{about}">
+        <feature href="dcatap.ecore#//CatalogRecord/primaryTopic"/>
+        <displayExpression language="OCL" body="self.about"/>
+      </fields>
+      <fields xsi:type="uimodel:ReferenceLinkWidget" name="recConformsTo" label="Konformität" targetRoute="/standard/{about}">
+        <feature href="dcatap.ecore#//CatalogRecord/conformsTo"/>
+        <displayExpression language="OCL" body="self.title"/>
+      </fields>
+      <fields xsi:type="uimodel:SelectWidget" name="recLanguage" label="Sprache" readOnly="true" multiSelect="true">
+        <feature href="dcatap.ecore#//CatalogRecord/language"/>
+      </fields>
+    </components>
+  </uimodel:UIModel>
+
+
+  <!-- ============================================================
+       UIModel für Catalog (Viewer-Modus / readOnly)
+       Niedrigere Priorität als CatalogOverview → wird als Alternative angeboten
+       ============================================================ -->
+
+  <uimodel:UIModel name="CatalogViewer" priority="5">
+    <targetClasses href="dcatap.ecore#//Catalog"/>
+
+    <styles xsi:type="uimodel:LayoutStyle" name="catalogViewerLayout" layout="VERTICAL"
+        css="uimodel-catalog-viewer max-w-5xl mx-auto p-6"/>
+    <styles xsi:type="uimodel:LayoutStyle" name="heroSection" layout="VERTICAL"
+        css="uimodel-hero bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-xl p-8 mb-8"/>
+    <styles xsi:type="uimodel:LayoutStyle" name="cardGrid" layout="GRID"
+        css="uimodel-card-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"/>
+    <styles xsi:type="uimodel:LayoutStyle" name="datasetCard" layout="VERTICAL"
+        css="uimodel-dataset-card bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow p-5"/>
+
+    <!-- Filter-Expression: nur Kataloge mit mindestens einem Dataset -->
+    <filterExpression language="OCL" body="self.dataset->notEmpty()"/>
+
+    <components xsi:type="uimodel:SectionView" name="catalogViewerSections">
+      <styles href="#//@styles.0"/>
+
+      <!-- Hero Section: Kataloginfo -->
+      <sections name="Katalog-Info">
+        <styles href="#//@styles.1"/>
+        <fields xsi:type="uimodel:InputWidget" name="cvTitle" label="Katalogname" readOnly="true">
+          <feature href="dcatap.ecore#//DcatResource/title"/>
+        </fields>
+        <fields xsi:type="uimodel:TextAreaWidget" name="cvDescription" label="Beschreibung" readOnly="true" rows="3">
+          <feature href="dcatap.ecore#//DcatResource/description"/>
+        </fields>
+        <fields xsi:type="uimodel:InputWidget" name="cvPublisher" label="Herausgeber" readOnly="true">
+          <feature href="dcatap.ecore#//DcatResource/publisher"/>
+        </fields>
+      </sections>
+
+      <!-- Datensatz-Karten als Tabelle (dargestellt als Karten via CSS) -->
+      <sections name="Datensätze">
+        <styles href="#//@styles.2"/>
+        <fields xsi:type="uimodel:ReferenceLinkWidget" name="cvDatasets" label="Datensätze" targetRoute="/dataset/{about}">
+          <feature href="dcatap.ecore#//Catalog/dataset"/>
+          <displayExpression language="OCL" body="self.dataset.title->first()"/>
+        </fields>
+      </sections>
+
+    </components>
+  </uimodel:UIModel>
+
+</xmi:XMI>

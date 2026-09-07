@@ -1,0 +1,19 @@
+# Abhängigkeiten
+node_modules/
+
+# Build-Ergebnis
+dist/
+
+# Lokale Konfiguration — Vorlage ist .env.example
+.env
+.env.local
+.env.*.local
+
+# Werkzeug-Caches
+.vite/
+*.tsbuildinfo
+
+# Editor und Betriebssystem
+.idea/
+.vscode/
+.DS_Store

@@ -1,0 +1,47 @@
+# Der DCAT-Viewer als Container.
+#
+#   cd deploy && docker compose up -d --build
+#   http://localhost:8081/
+#
+# Ein Dienst. Das Portal läuft daneben und wird nicht von hier gestartet: sein
+# Image braucht die SHACL-Shapes als Mount (AGPL-3.0, bewusst nicht im Image)
+# und wird ohne sie nie ready. Wie man es aufsetzt, steht in dcat.atlas unter
+# docker/dockercompose/docker-compose.yml.
+#
+# Auf ein Portal auf dem Docker-Host zeigen (der Default):
+#   docker compose up -d
+# Auf ein entferntes Portal:
+#   DCAT_ATLAS_URL=https://dcat.modelatlas.cloud/ \
+#   DCAT_ATLAS_HOST=dcat.modelatlas.cloud \
+#   docker compose up -d
+# Auf ein Portal im selben Compose-Netz (Dienstname als Host):
+#   DCAT_ATLAS_URL=http://dcat-atlas:8080/ DCAT_ATLAS_HOST=dcat-atlas:8080 ...
+
+name: dcat-atlas-ui
+
+services:
+  ui:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: dcat-atlas-ui:latest
+    restart: unless-stopped
+    environment:
+      # Die Basis, unter der /rest und /health des Portals liegen, mit
+      # abschließendem Schrägstrich. Für das Portal-Image (CONTEXT_PATH=/) die
+      # blanke Wurzel; ein bndrun-Lauf mit Kontextpfad /dcat braucht ihn mit.
+      DCAT_ATLAS_URL: "${DCAT_ATLAS_URL:-http://host.docker.internal:8080/}"
+      # Der host[:port] genau dieser URL, als Host-Header geschickt — ein
+      # Portal hinter einem Gateway routet darauf. Die beiden im Gleichschritt
+      # halten.
+      DCAT_ATLAS_HOST: "${DCAT_ATLAS_HOST:-host.docker.internal:8080}"
+      # Vollständiger Authorization-Header für ein Portal, dessen Schreibseite
+      # eine Anmeldung verlangt ("Basic <base64 user:pass>"). Leer heißt: kein
+      # Header. Bewusst setzen — wer den Container erreicht, schreibt damit.
+      DCAT_ATLAS_AUTH: "${DCAT_ATLAS_AUTH:-}"
+    extra_hosts:
+      # Damit der Default-Hostname oben ein Portal auf dem Docker-Host trifft.
+      - "host.docker.internal:host-gateway"
+    ports:
+      # 8081, weil 8080 üblicherweise das Portal selbst belegt.
+      - "${UI_PORT:-8081}:80"
