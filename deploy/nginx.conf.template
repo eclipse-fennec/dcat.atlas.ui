@@ -108,7 +108,17 @@ server {
         add_header Cache-Control "no-store";
     }
 
+    # Die Adressen des Viewers (/datasets/…, /sparql, /verwalten, …) sind
+    # Routen im Browser, keine Dateien. Was nicht als Datei existiert, bekommt
+    # deshalb die Einstiegsseite — mit demselben no-store wie unter `/`.
+    # /assets/ und /model/ bleiben davon ausgenommen: ein fehlendes Bundle soll
+    # 404 sein und nicht als HTML ankommen.
     location / {
-        try_files $uri $uri/ =404;
+        try_files $uri @app;
+    }
+
+    location @app {
+        rewrite ^ /index.html break;
+        add_header Cache-Control "no-store";
     }
 }
