@@ -107,7 +107,7 @@ API kennt keine Volltextsuche. Über 300 Einträge hinaus wird per
 
 ## Verwaltung (Schreibseite)
 
-Ein **eigener Bereich unter `#/verwalten`**, nicht im Lese-Menü — erreichbar
+Ein **eigener Bereich unter `/verwalten`**, nicht im Lese-Menü — erreichbar
 über den Link im Footer. Die Verwaltung hat mit dem Blättern im Katalog nichts
 zu tun und sie schreibt; sie steht darum hinter einer eigenen Adresse
 (verlinkbar, aber niemand stolpert beim Stöbern hinein).

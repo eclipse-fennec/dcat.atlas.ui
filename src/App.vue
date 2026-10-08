@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, shallowRef } from 'vue';
+import { ref, computed, onMounted, shallowRef, watch } from 'vue';
+import { useRoute, useRouter, type LocationQuery } from 'vue-router';
 import type { EObject } from '@emfts/core';
 import DatasetCard from './components/DatasetCard.vue';
 import DatasetDetail from './components/DatasetDetail.vue';
@@ -9,6 +10,7 @@ import { eget, asList, getLabel, getAllLabels, getAbout, formatDate, referenceUr
 import { themeLabel } from './emf/vocab';
 import { DcatAtlasClient, DcatAtlasError, API_BASE, idOf } from './api/dcatAtlas';
 import { loadModels } from './emf/loadResources';
+import type { Tab } from './router';
 
 /** Wie viele Einträge je Sammlung initial geladen werden. */
 const PAGE_SIZE = 100;
@@ -107,19 +109,12 @@ async function loadMoreDatasets() {
  * Die Verwaltung ist ein eigener Bereich, kein Tab.
  *
  * Sie hat mit dem Blättern im Katalog nichts zu tun, und sie schreibt. Darum
- * liegt sie hinter einer eigenen Adresse (`#/verwalten`) statt neben den
+ * liegt sie hinter einer eigenen Adresse (`/verwalten`) statt neben den
  * Lese-Tabs: verlinkbar, aber niemand stolpert beim Stöbern hinein.
  */
-const AREA_ADMIN = 'verwalten';
-const areaFromHash = () => window.location.hash.replace(/^#\/?/, '');
-const area = ref(areaFromHash());
-const isAdminArea = computed(() => area.value === AREA_ADMIN);
-
-function syncArea() {
-  area.value = areaFromHash();
-}
-onMounted(() => window.addEventListener('hashchange', syncArea));
-onUnmounted(() => window.removeEventListener('hashchange', syncArea));
+const route = useRoute();
+const router = useRouter();
+const isAdminArea = computed(() => route.name === 'admin');
 
 onMounted(load);
 
@@ -164,9 +159,37 @@ const portalPublisher = computed(() =>
 
 // ------------------------------------------------------------------- Filterung
 
-const searchQuery = ref('');
-const selectedTheme = ref<string | null>(null);
-const selectedCatalog = ref<string | null>(null);
+/**
+ * Die Filter leben in der Query der Adresse, nicht in lokalem Zustand: eine
+ * gefilterte Liste ist so verlinkbar, und „Zurück“ stellt sie wieder her.
+ */
+function queryParam(name: string): string | null {
+  const value = route.query[name];
+  return typeof value === 'string' && value ? value : null;
+}
+
+const searchQuery = computed(() => queryParam('q') ?? '');
+const selectedTheme = computed(() => queryParam('theme'));
+const selectedCatalog = computed(() => queryParam('catalog'));
+
+/**
+ * Filter setzen; `null` oder leer entfernt den Parameter. Ein Klick auf eine
+ * Facette ist ein eigener Schritt in der Historie, die Suche ersetzt dagegen
+ * den aktuellen Eintrag — sonst wäre jeder Tastendruck ein „Zurück“.
+ */
+function setFilter(patch: Record<string, string | null>, replace = false) {
+  const query: LocationQuery = { ...route.query };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value) query[key] = value;
+    else delete query[key];
+  }
+  void (replace ? router.replace({ query }) : router.push({ query }));
+}
+
+function onSearch(event: Event) {
+  const value = (event.target as HTMLInputElement).value;
+  setFilter({ q: value.trim() ? value : null }, true);
+}
 
 /**
  * Die Filter greifen gestaffelt ineinander, damit die Zähler an den Facetten
@@ -306,29 +329,59 @@ const filteredDatasets = computed(() => {
 /** Alle Filter zurücksetzen — für den Fall, dass die Kombination leer läuft. */
 const hasFilter = computed(() => !!(searchQuery.value.trim() || selectedTheme.value || selectedCatalog.value));
 function clearFilters() {
-  searchQuery.value = '';
-  selectedTheme.value = null;
-  selectedCatalog.value = null;
+  setFilter({ q: null, theme: null, catalog: null });
 }
 
 // -------------------------------------------------------------------- Auswahl
 
-const selectedDataset = shallowRef<EObject | null>(null);
-type Tab = 'datasets' | 'services' | 'catalogs' | 'sparql';
-const activeTab = ref<Tab>('datasets');
+const activeTab = computed<Tab>(() => route.meta.tab ?? 'datasets');
 
+/**
+ * Der Datensatz der Adresse `/datasets/:id`.
+ *
+ * Meist liegt er schon in der geladenen Liste. Ein direkt aufgerufener Link
+ * kann aber hinter die ersten Seiten zeigen — dann wird er einzeln geholt.
+ */
+const datasetId = computed(() => (route.name === 'dataset' ? String(route.params.id) : null));
+const fetchedDataset = shallowRef<{ id: string; dataset: EObject | null } | null>(null);
+const fetchingDataset = ref(false);
+
+const selectedDataset = computed<EObject | null>(() => {
+  const id = datasetId.value;
+  if (!id) return null;
+  const loaded = datasets.value.find((ds) => idOf(getAbout(ds)) === id);
+  if (loaded) return loaded;
+  return fetchedDataset.value?.id === id ? fetchedDataset.value.dataset : null;
+});
+
+watch([datasetId, phase], async ([id, current]) => {
+  const api = client.value;
+  if (!id || current !== 'ready' || !api || selectedDataset.value) return;
+  if (fetchedDataset.value?.id === id) return;
+  fetchingDataset.value = true;
+  try {
+    const dataset = await api.get('datasets', id);
+    // Inzwischen weiternavigiert? Dann gehört die Antwort zu keiner Ansicht mehr.
+    if (datasetId.value === id) fetchedDataset.value = { id, dataset };
+  } catch (err) {
+    console.error('Datensatz laden fehlgeschlagen:', err);
+    if (datasetId.value === id) fetchedDataset.value = { id, dataset: null };
+  } finally {
+    fetchingDataset.value = false;
+  }
+}, { immediate: true });
+
+/** Die Filter reisen mit, damit „Zurück zur Übersicht“ dieselbe Liste zeigt. */
 function selectDataset(ds: EObject) {
-  selectedDataset.value = ds;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  void router.push({ name: 'dataset', params: { id: idOf(getAbout(ds)) }, query: route.query });
 }
 
 function clearSelection() {
-  selectedDataset.value = null;
+  void router.push({ name: 'datasets', query: route.query });
 }
 
 function switchTab(tab: Tab) {
-  activeTab.value = tab;
-  clearSelection();
+  void router.push({ name: tab, query: route.query });
 }
 
 /** Deutsche Ein-/Mehrzahl: „1 Datensatz“ statt „1 Datensätze“. */
@@ -392,11 +445,11 @@ const catalogViews = computed(() => {
       <button class="state__retry" @click="load()">Erneut versuchen</button>
     </div>
 
-    <!-- Verwaltung: eigener Bereich unter #/verwalten, nicht im Lese-Menü -->
+    <!-- Verwaltung: eigener Bereich unter /verwalten, nicht im Lese-Menü -->
     <template v-else-if="isAdminArea">
       <header class="adminbar">
         <div class="adminbar__inner">
-          <a href="#/" class="adminbar__back">&larr; Zurück zum Portal</a>
+          <RouterLink to="/" class="adminbar__back">&larr; Zurück zum Portal</RouterLink>
           <h1 class="adminbar__title">Verwaltung</h1>
           <span class="adminbar__hint">Schreibzugriff auf <code>{{ API_BASE }}/admin</code></span>
         </div>
@@ -425,10 +478,11 @@ const catalogViews = computed(() => {
           <p class="hero__desc">{{ portalDescription }}</p>
           <div class="hero__search">
             <input
-              v-model="searchQuery"
+              :value="searchQuery"
               type="search"
               placeholder="Datensätze durchsuchen…"
               class="search-input"
+              @input="onSearch"
             />
           </div>
           <div class="hero__meta">
@@ -475,13 +529,17 @@ const catalogViews = computed(() => {
 
       <main class="main">
         <!-- Datensatz-Detailansicht -->
-        <div v-if="selectedDataset" class="detail-wrapper">
+        <div v-if="datasetId" class="detail-wrapper">
           <div class="breadcrumb">
             <button class="breadcrumb__back" @click="clearSelection()">
               &larr; Zurück zur Übersicht
             </button>
           </div>
-          <DatasetDetail :dataset="selectedDataset" :client="client" />
+          <DatasetDetail v-if="selectedDataset" :dataset="selectedDataset" :client="client" />
+          <p v-else-if="fetchingDataset" class="no-results">Datensatz wird geladen…</p>
+          <p v-else class="no-results">
+            Den Datensatz <code>{{ datasetId }}</code> gibt es nicht.
+          </p>
         </div>
 
         <!-- Datensatz-Liste -->
@@ -494,7 +552,7 @@ const catalogViews = computed(() => {
                 <li>
                   <button
                     :class="['sidebar__item', { 'sidebar__item--active': !selectedCatalog }]"
-                    @click="selectedCatalog = null"
+                    @click="setFilter({ catalog: null })"
                   >
                     Alle Kataloge ({{ bySearch.length }})
                   </button>
@@ -504,7 +562,7 @@ const catalogViews = computed(() => {
                     :class="['sidebar__item', { 'sidebar__item--active': selectedCatalog === cat.id }]"
                     :style="{ paddingLeft: `${0.7 + cat.depth * 0.9}rem` }"
                     :title="cat.depth > 0 ? 'Unterkatalog' : undefined"
-                    @click="selectedCatalog = cat.id"
+                    @click="setFilter({ catalog: cat.id })"
                   >
                     <span v-if="cat.depth > 0" class="sidebar__nest" aria-hidden="true">└</span>
                     {{ cat.title }} ({{ cat.count }})
@@ -518,7 +576,7 @@ const catalogViews = computed(() => {
               <li>
                 <button
                   :class="['sidebar__item', { 'sidebar__item--active': !selectedTheme }]"
-                  @click="selectedTheme = null"
+                  @click="setFilter({ theme: null })"
                 >
                   Alle ({{ byCatalog.length }})
                 </button>
@@ -526,7 +584,7 @@ const catalogViews = computed(() => {
               <li v-for="[theme, count] in allThemes" :key="theme">
                 <button
                   :class="['sidebar__item', { 'sidebar__item--active': selectedTheme === theme }]"
-                  @click="selectedTheme = theme"
+                  @click="setFilter({ theme })"
                 >
                   {{ theme }} ({{ count }})
                 </button>
@@ -628,7 +686,7 @@ const catalogViews = computed(() => {
       <footer class="footer">
         DCAT.Atlas-API: <code>{{ API_BASE }}</code>
         <span class="footer__sep">·</span>
-        <a href="#/verwalten" class="footer__admin">Verwaltung</a>
+        <RouterLink to="/verwalten" class="footer__admin">Verwaltung</RouterLink>
       </footer>
     </template>
   </div>
